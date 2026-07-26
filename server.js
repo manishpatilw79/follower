@@ -6,24 +6,21 @@ const USERNAME = 'reservationhataomovement';
 
 app.get('/followers', async (req, res) => {
   try {
-    const { data } = await axios.get(`https://www.instagram.com/${USERNAME}/`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'
+    const { data } = await axios.get(
+      `https://i.instagram.com/api/v1/users/web_profile_info/?username=${USERNAME}`,
+      {
+        headers: {
+          'User-Agent': 'Instagram 219.0.0.12.117 Android',
+          'x-ig-app-id': '936619743392459',
+          'Accept': '*/*'
+        }
       }
-    });
+    );
 
-    const match = data.match(/"edge_followed_by":\{"count":(\d+)\}/);
-    if (match) {
-      res.send(match[1]);
-    } else {
-      const metaMatch = data.match(/([\d,.]+)\s+Followers/i);
-      if (metaMatch) {
-        res.send(metaMatch[1].replace(/[,.]/g, ''));
-      } else {
-        res.status(500).send('0');
-      }
-    }
+    const count = data.data.user.edge_followed_by.count;
+    res.send(String(count));
   } catch (err) {
+    console.error(err.message);
     res.status(500).send('0');
   }
 });
