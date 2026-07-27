@@ -50,6 +50,14 @@ async function exposeUpdateFunction() {
       log('Follower count updated:', count);
     }
   });
+
+  await page.exposeFunction('__onDebugScan', (snippet, matched) => {
+    log('Scan debug — matched:', matched, '| snippet:', snippet);
+  });
+
+  page.on('console', (msg) => {
+    log('[browser console]', msg.text());
+  });
 }
 
 async function injectObserver() {
@@ -59,6 +67,9 @@ async function injectObserver() {
       const match = bodyText.match(/([\d,.]{4,})\s*(Followers|followers)/);
       if (match) {
         window.__onFollowerUpdate(match[1]);
+      } else {
+        const snippet = bodyText.replace(/\s+/g, ' ').slice(0, 300);
+        window.__onDebugScan(snippet, false);
       }
     }
 
@@ -75,6 +86,7 @@ async function injectObserver() {
     });
 
     window.__igObserverActive = true;
+    setInterval(scanAndReport, 5000);
   });
 }
 
@@ -134,6 +146,39 @@ async function launchAndObserve() {
     isConnecting = false;
     try {
       if (browser) await browser.close();
+    } catch (_) {}
+    setTimeout(launchAndObserve, 3000);
+  }
+}
+
+app.get('/followers', (req, res) => {
+  if (latestFollowers === null) {
+    return res.status(503).json({ error: 'Follower count not yet available' });
+  }
+  res.json({
+    followers: latestFollowers,
+    display: formatDisplay(latestFollowers)
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    browserAlive: !!browser && browser.isConnected(),
+    followers: latestFollowers
+  });
+});
+
+app.listen(PORT, () => {
+  log(`Server listening on port ${PORT}`);
+  launchAndObserve();
+});
+
+process.on('SIGTERM', async () => {
+  log('SIGTERM received, closing browser...');
+  if (browser) await browser.close();
+  process.exit(0);
+});      if (browser) await browser.close();
     } catch (_) {}
     setTimeout(launchAndObserve, 3000);
   }
